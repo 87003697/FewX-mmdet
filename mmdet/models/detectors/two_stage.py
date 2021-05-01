@@ -6,7 +6,7 @@ from .base import BaseDetector
 
 @DETECTORS.register_module()
 class TwoStageDetector(BaseDetector):
-    """Base class for two-stage detectors.
+    """Base class for two-stage detectors of FSOD
 
     Two-stage detectors typically consisting of a region proposal network and a
     task-specific regression head.
