@@ -15,6 +15,7 @@ from .api_wrappers import COCO, COCOeval
 from .builder import DATASETS
 from .custom import CustomDataset
 
+import pdb
 
 @DATASETS.register_module()
 class CocoDataset_fsod(CustomDataset):
@@ -58,6 +59,8 @@ class CocoDataset_fsod(CustomDataset):
             total_ann_ids.extend(ann_ids)
         assert len(set(total_ann_ids)) == len(
             total_ann_ids), f"Annotation ids in '{ann_file}' are not unique!"
+        # data_infos = <class 'list'>
+        # data_infos[0].keys() = dict_keys(['license', 'file_name', 'coco_url', 'height', 'width', 'date_captured', 'flickr_url', 'id', 'filename'])
         return data_infos
 
     def get_ann_info(self, idx):
@@ -69,11 +72,10 @@ class CocoDataset_fsod(CustomDataset):
         Returns:
             dict: Annotation info of specified index.
         """
-
         img_id = self.data_infos[idx]['id']
         ann_ids = self.coco.get_ann_ids(img_ids=[img_id])
         ann_info = self.coco.load_anns(ann_ids)
-        return self._parse_ann_info(self.data_infos[idx], ann_info)
+        return self._parse_ann_info(self.data_infos[idx], ann_info, ann_ids)
 
     def get_cat_ids(self, idx):
         """Get COCO category ids by index.
@@ -114,12 +116,13 @@ class CocoDataset_fsod(CustomDataset):
         self.img_ids = valid_img_ids
         return valid_inds
 
-    def _parse_ann_info(self, img_info, ann_info):
+    def _parse_ann_info(self, img_info, ann_info, ann_ids):
         """Parse bbox and mask annotation.
 
         Args:
             ann_info (list[dict]): Annotation info of an image.
             with_mask (bool): Whether to parse mask annotations.
+            ann_ids (list[int]): Annotation ids of an image.
 
         Returns:
             dict: A dict containing the following keys: bboxes, bboxes_ignore,\
@@ -169,7 +172,8 @@ class CocoDataset_fsod(CustomDataset):
             labels=gt_labels,
             bboxes_ignore=gt_bboxes_ignore,
             masks=gt_masks_ann,
-            seg_map=seg_map)
+            seg_map=seg_map,
+            ids = ann_ids)
 
         return ann
 

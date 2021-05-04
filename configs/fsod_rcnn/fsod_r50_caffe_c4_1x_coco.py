@@ -7,8 +7,10 @@ _base_ = [
 img_norm_cfg = dict(
     mean=[103.530, 116.280, 123.675], std=[1.0, 1.0, 1.0], to_rgb=False)
 train_pipeline = [
+    dict(type='LoadAnnotations', with_bbox=True, ),
+    dict(type='SelectOne', seed = 0),
+    dict(type='LoadSupport', num_imgs = 10, support_df = 'train_support_df.pkl'),
     dict(type='LoadImageFromFile'),
-    dict(type='LoadAnnotations', with_bbox=True),
     dict(type='Resize', img_scale=(1333, 800), keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0.5),
     dict(type='Normalize', **img_norm_cfg),
