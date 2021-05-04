@@ -6,7 +6,7 @@ import torch
 from mmcv.parallel import DataContainer as DC
 
 from ..builder import PIPELINES
-
+import pdb
 
 def to_tensor(data):
     """Convert objects of various python types to :obj:`torch.Tensor`.
@@ -216,6 +216,29 @@ class DefaultFormatBundle(object):
         if 'gt_semantic_seg' in results:
             results['gt_semantic_seg'] = DC(
                 to_tensor(results['gt_semantic_seg'][None, ...]), stack=True)
+
+        if 'support' in results.keys():
+            support = results['support']
+
+            imgs = support['img']
+            img_ls = []
+            for img in imgs:
+                img = np.ascontiguousarray(img.transpose(2, 0, 1))
+                img_ls.append(DC(to_tensor(img), stack=True))
+            support['img'] = img_ls
+
+            bboxes = support['gt_bboxes']
+            bbox_ls = []
+            for bbox in bboxes:
+                bbox_ls.append(DC(to_tensor(bbox)))
+            support['gt_bboxes'] = bbox_ls
+
+            labels = support['gt_labels']
+            label_ls = []
+            for label in labels:
+                label_ls.append(DC(to_tensor(label)))
+            support['gt_lables'] = label_ls
+
         return results
 
     def _add_default_meta_keys(self, results):
@@ -316,7 +339,14 @@ class Collect(object):
         data['img_metas'] = DC(img_meta, cpu_only=True)
         for key in self.keys:
             data[key] = results[key]
+
+        if 'support' in results.keys():
+            data['support_imgs'] = results['support']['img']
+            data['support_bboxes'] = results['support']['gt_bboxes']
+            data['support_labels'] = results['support']['gt_labels']
+
         return data
+
 
     def __repr__(self):
         return self.__class__.__name__ + \

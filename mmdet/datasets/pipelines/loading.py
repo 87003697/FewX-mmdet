@@ -71,6 +71,20 @@ class LoadImageFromFile(object):
         results['img_shape'] = img.shape
         results['ori_shape'] = img.shape
         results['img_fields'] = ['img']
+
+
+        if 'support' in results.keys():
+            support = results['support']
+            support['img'] = []
+            prefix = 'data/coco'
+            for file, box in zip(support['filename'],support['gt_bboxes']):
+                filename = file[2:] #delete './'
+                filename = osp.join(prefix,  filename)
+                img_bytes = self.file_client.get(filename)
+                img = mmcv.imfrombytes(img_bytes, flag=self.color_type)
+                if self.to_float32:
+                    img = img.astype(np.float32)
+                support['img'].append(img)
         return results
 
     def __repr__(self):
@@ -505,10 +519,10 @@ class LoadSupport:
         used_id_ls = results['gt_ids']
         used_category_id = list(set(all_cls))
 
-        results['support_imgs'] = {}
-        results['support_imgs']['filename'] = []
-        results['support_imgs']['gt_bboxes'] = []
-        results['support_imgs']['gt_labels'] = []
+        results['support'] = {}
+        results['support']['filename'] = []
+        results['support']['gt_bboxes'] = []
+        results['support']['gt_labels'] = []
         # register postive support data
         for shot in range(support_shot):
             support_id = self.support_df.loc[(self.support_df['category_id'] == query_cls) & (~self.support_df['image_id'].isin(used_image_id)) & (~self.support_df['id'].isin(used_id_ls)), 'id'].sample(random_state=query_cls).tolist()[0]
@@ -519,9 +533,9 @@ class LoadSupport:
 
             support_db = self.support_df.loc[self.support_df['id'] == support_id, :]
             assert support_db['id'].values[0] == support_id
-            results['support_imgs']['gt_bboxes'].append(support_db['support_box'].tolist()[0])
-            results['support_imgs']['gt_labels'].append(0) #positive label
-            results['support_imgs']['filename'].append(support_db['file_path'].tolist()[0])
+            results['support']['gt_bboxes'].append(support_db['support_box'].tolist()[0])
+            results['support']['gt_labels'].append(0) #positive label
+            results['support']['filename'].append(support_db['file_path'].tolist()[0])
         
         if support_way == 1:
             pass
@@ -539,9 +553,9 @@ class LoadSupport:
 
                     support_db = self.support_df.loc[self.support_df['id'] == support_id, :]
                     assert support_db['id'].values[0] == support_id
-                    results['support_imgs']['gt_bboxes'].append(support_db['support_box'].tolist()[0])
-                    results['support_imgs']['gt_labels'].append(1) #negative label
-                    results['support_imgs']['filename'].append(support_db['file_path'].tolist()[0])
+                    results['support']['gt_bboxes'].append(support_db['support_box'].tolist()[0])
+                    results['support']['gt_labels'].append(1) #negative label
+                    results['support']['filename'].append(support_db['file_path'].tolist()[0])
 
         return results
 

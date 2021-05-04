@@ -20,6 +20,7 @@ try:
 except ImportError:
     albumentations = None
     Compose = None
+import pdb
 
 
 @PIPELINES.register_module()
@@ -303,6 +304,8 @@ class Resize(object):
         self._resize_bboxes(results)
         self._resize_masks(results)
         self._resize_seg(results)
+
+
         return results
 
     def __repr__(self):
@@ -466,6 +469,7 @@ class RandomFlip(object):
             for key in results.get('seg_fields', []):
                 results[key] = mmcv.imflip(
                     results[key], direction=results['flip_direction'])
+
         return results
 
     def __repr__(self):
@@ -623,6 +627,7 @@ class Pad(object):
         self._pad_img(results)
         self._pad_masks(results)
         self._pad_seg(results)
+
         return results
 
     def __repr__(self):
@@ -666,6 +671,12 @@ class Normalize(object):
                                             self.to_rgb)
         results['img_norm_cfg'] = dict(
             mean=self.mean, std=self.std, to_rgb=self.to_rgb)
+
+        if 'support' in results.keys():
+            img_ls = []
+            for img in results['support']['img']:
+                img_ls.append(mmcv.imnormalize(img, self.mean, self.std, self.to_rgb))
+            results['support']['img'] = img_ls
         return results
 
     def __repr__(self):

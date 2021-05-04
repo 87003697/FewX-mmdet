@@ -89,6 +89,9 @@ class FsodRCNN(BaseDetector):
                       gt_bboxes_ignore=None,
                       gt_masks=None,
                       proposals=None,
+                      support_imgs = None,
+                      support_bboxes = None,
+                      support_labels = None,
                       **kwargs):
         """
         Args:
@@ -114,6 +117,12 @@ class FsodRCNN(BaseDetector):
 
             proposals : override rpn proposals with custom proposals. Use when
                 `with_rpn` is False.
+
+            support_imgs (None | List): support img
+
+            support_bboxes (None | List): support bboxes
+
+            support_labels (None | List): supprt labels
 
         Returns:
             dict[str, Tensor]: a dictionary of loss components
