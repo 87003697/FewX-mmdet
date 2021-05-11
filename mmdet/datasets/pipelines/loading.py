@@ -59,7 +59,6 @@ class LoadImageFromFile(object):
                                 results['img_info']['filename'])
         else:
             filename = results['img_info']['filename']
-
         img_bytes = self.file_client.get(filename)
         img = mmcv.imfrombytes(img_bytes, flag=self.color_type)
         if self.to_float32:
@@ -72,19 +71,6 @@ class LoadImageFromFile(object):
         results['ori_shape'] = img.shape
         results['img_fields'] = ['img']
 
-
-        if 'support' in results.keys():
-            support = results['support']
-            support['img'] = []
-            prefix = 'data/coco'
-            for file, box in zip(support['filename'],support['gt_bboxes']):
-                filename = file[2:] #delete './'
-                filename = osp.join(prefix,  filename)
-                img_bytes = self.file_client.get(filename)
-                img = mmcv.imfrombytes(img_bytes, flag=self.color_type)
-                if self.to_float32:
-                    img = img.astype(np.float32)
-                support['img'].append(img)
         return results
 
     def __repr__(self):
@@ -93,6 +79,41 @@ class LoadImageFromFile(object):
                     f"color_type='{self.color_type}', "
                     f'file_client_args={self.file_client_args})')
         return repr_str
+
+@PIPELINES.register_module()
+class LoadSupportImageFromFile(LoadImageFromFile):
+    """Load support images from.
+
+    Similar with :obj:`LoadImageFromFile`, but the image files is in
+    ``results['support']``.
+    """
+    def __call__(self, results):
+        """Call functions to load image and get image meta information.
+
+        Args:
+            results (dict): Result dict from :obj:`mmdet.CustomDataset`.
+
+        Returns:
+            dict: The dict contains loaded image and meta information.
+        """
+
+        if self.file_client is None:
+            self.file_client = mmcv.FileClient(**self.file_client_args)
+
+        assert 'support' in results.keys()
+        support = results['support']
+        support['img'] = []
+        prefix = 'data/coco'
+        for file, box in zip(support['filename'],support['gt_bboxes']):
+            filename = file[2:] #delete './'
+            filename = osp.join(prefix,  filename)
+            img_bytes = self.file_client.get(filename)
+            img = mmcv.imfrombytes(img_bytes, flag=self.color_type)
+            if self.to_float32:
+                img = img.astype(np.float32)
+            support['img'].append(img)
+        return results
+
 
 
 @PIPELINES.register_module()
@@ -237,7 +258,7 @@ class LoadAnnotations(object):
                  with_mask=False,
                  with_seg=False,
                  poly2mask=True,
-                 with_id = True,
+                 with_id = False,
                  file_client_args=dict(backend='disk')):
         self.with_bbox = with_bbox
         self.with_label = with_label
@@ -556,6 +577,9 @@ class LoadSupport:
                     results['support']['gt_bboxes'].append(support_db['support_box'].tolist()[0])
                     results['support']['gt_labels'].append(1) #negative label
                     results['support']['filename'].append(support_db['file_path'].tolist()[0])
+
+        # change all gt_labels to 0
+        # results['gt_labels'] = np.zeros_like(results['gt_labels'])
 
         return results
 

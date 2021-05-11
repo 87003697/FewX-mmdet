@@ -2,7 +2,7 @@ import torch
 
 from ..builder import DETECTORS, build_backbone, build_head, build_neck
 from .base import BaseDetector
-
+import pandas as pd
 import pdb
 @DETECTORS.register_module()
 class FsodRCNN(BaseDetector):
@@ -128,29 +128,77 @@ class FsodRCNN(BaseDetector):
             dict[str, Tensor]: a dictionary of loss components
         """
         x = self.extract_feat(img)
+        
+        # squeeze unused dimensions in bboxs and labels
+        # originally these dimensions are for bypass some configs in mmdet
+        support_bboxes = torch.squeeze(support_bboxes)
+        support_labels = torch.squeeze(support_labels)
 
-        losses = dict()
+        # extract support features
+        B, N, C, H, W  = support_imgs.shape
+        support_imgs = support_imgs.reshape(B*N, C, H, W)
+        support_features = self.extract_feat(support_imgs)
 
+
+        assert self.with_rpn # otherwise it's not fsod :)
+        losses_rpn_cls, losses_rpn_bbox, losses_cls, losses_bbox, acces = [], [], [], [], []
+         
         # RPN forward and loss
-        if self.with_rpn:
+        for i in range(B):
+
+            losses_perbatch = dict()
+            x_i = tuple(x_[i].unsqueeze(0) for x_ in x)
+
+            assert self.with_rpn, 'we need rpn with feature aggregation'
             proposal_cfg = self.train_cfg.get('rpn_proposal',
-                                              self.test_cfg.rpn)
+                                            self.test_cfg.rpn)
+            # cls_dim = torch.zeros_like(support_bboxes[i])
+            # _support_bboxes = torch.cat([cls_dim, support_bboxes[i]], axis = -1)[:,3:].float().contiguous()
+            # self.roi_head.bbox_roi_extractor(support_features,_support_bboxes)
+            
+            # # extract roi features
+            batch_size = support_bboxes.shape[1]
+            support_bbox_features = []
+            for support_features_ in support_features:
+                for support_feature, support_bbox in zip(support_features_[i * batch_size: (i + 1) * batch_size],support_bboxes[i]):
+                # extract roi features in res5
+                    support_bbox = torch.cat([torch.zeros_like(support_bbox[:1]), support_bbox]).float().contiguous()
+                    support_bbox_features.append(self.roi_head.bbox_roi_extractor([support_feature.unsqueeze(0)],support_bbox.unsqueeze(0)))
+
+            pdb.set_trace()
             rpn_losses, proposal_list = self.rpn_head.forward_train(
-                x,
-                img_metas,
-                gt_bboxes,
+                x_i,
+                [img_metas[i]], 
+                [gt_bboxes[i]],
                 gt_labels=None,
                 gt_bboxes_ignore=gt_bboxes_ignore,
                 proposal_cfg=proposal_cfg)
-            losses.update(rpn_losses)
-        else:
-            proposal_list = proposals
+            #proposal_list[0].shape = torch.Size([2000, 5])
+            losses_perbatch.update(rpn_losses)
 
-        roi_losses = self.roi_head.forward_train(x, img_metas, proposal_list,
-                                                 gt_bboxes, gt_labels,
-                                                 gt_bboxes_ignore, gt_masks,
-                                                 **kwargs)
-        losses.update(roi_losses)
+            roi_losses = self.roi_head.forward_train(x_i, [img_metas[i]], proposal_list,
+                                                    [gt_bboxes[i]], [gt_labels[i]],
+                                                    support_bbox_features, #support_features,
+                                                    gt_bboxes_ignore, gt_masks, 
+                                                    **kwargs)
+            losses_perbatch.update(roi_losses)
+            # losses_perbatch.keys() = dict_keys(['loss_rpn_cls', 'loss_rpn_bbox', 'loss_cls', 'acc', 'loss_bbox'])
+
+            # update losses
+            losses_rpn_cls.append(torch.stack(losses_perbatch['loss_rpn_cls']).sum())
+            losses_rpn_bbox.append(torch.stack(losses_perbatch['loss_rpn_bbox']).sum())
+            losses_cls.append(losses_perbatch['loss_cls'])
+            acces.append(losses_perbatch['acc'])
+            losses_bbox.append(losses_perbatch['loss_bbox'])
+
+        # sum up losses
+        losses = dict()
+        losses['loss_rpn_cls'] = torch.stack(losses_rpn_cls).mean()
+        losses['loss_rpn_bbox'] = torch.stack(losses_rpn_bbox).mean()
+        losses['loss_cls'] = torch.stack(losses_cls).mean()
+        losses['acc'] = torch.stack(acces).mean()
+        losses['loss_bbox'] = torch.stack(losses_bbox).mean()
+
 
         return losses
 
@@ -160,6 +208,7 @@ class FsodRCNN(BaseDetector):
                                 proposals=None,
                                 rescale=False):
         """Async test without augmentation."""
+        
         assert self.with_bbox, 'Bbox head must be implemented.'
         x = self.extract_feat(img)
 
@@ -174,8 +223,9 @@ class FsodRCNN(BaseDetector):
 
     def simple_test(self, img, img_metas, proposals=None, rescale=False):
         """Test without augmentation."""
-        assert self.with_bbox, 'Bbox head must be implemented.'
 
+        assert self.with_bbox, 'Bbox head must be implemented.'
+        
         x = self.extract_feat(img)
 
         # get origin input shape to onnx dynamic input shape
@@ -197,6 +247,7 @@ class FsodRCNN(BaseDetector):
         If rescale is False, then returned bboxes and masks will fit the scale
         of imgs[0].
         """
+
         x = self.extract_feats(imgs)
         proposal_list = self.rpn_head.aug_test_rpn(x, img_metas)
         return self.roi_head.aug_test(

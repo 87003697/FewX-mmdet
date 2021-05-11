@@ -317,6 +317,15 @@ class Resize(object):
         repr_str += f'bbox_clip_border={self.bbox_clip_border})'
         return repr_str
 
+@PIPELINES.register_module()
+class LabelToZero(object):
+    """
+    Assign all gt_labels to be 0
+    """
+    def __call__(self, results):
+        results['gt_labels'] = np.zeros_like(results['gt_labels'])
+        return results
+
 
 @PIPELINES.register_module()
 class RandomFlip(object):

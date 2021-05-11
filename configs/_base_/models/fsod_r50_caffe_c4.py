@@ -31,7 +31,7 @@ model = dict(
             type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0),
         loss_bbox=dict(type='L1Loss', loss_weight=1.0)),
     roi_head=dict(
-        type='StandardRoIHead',
+        type='StandardRoIHead_fsod',
         shared_head=dict(
             type='ResLayer',
             depth=50,
@@ -47,11 +47,11 @@ model = dict(
             out_channels=1024,
             featmap_strides=[16]),
         bbox_head=dict(
-            type='BBoxHead',
+            type='BBoxHead_fsod',
             with_avg_pool=True,
             roi_feat_size=7,
             in_channels=2048,
-            num_classes=80,
+            num_classes=2, # 2!
             bbox_coder=dict(
                 type='DeltaXYWHBBoxCoder',
                 target_means=[0., 0., 0., 0.],

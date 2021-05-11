@@ -221,23 +221,26 @@ class DefaultFormatBundle(object):
             support = results['support']
 
             imgs = support['img']
-            img_ls = []
-            for img in imgs:
-                img = np.ascontiguousarray(img.transpose(2, 0, 1))
-                img_ls.append(DC(to_tensor(img), stack=True))
-            support['img'] = img_ls
+            # img_ls = []
+            # for img in imgs:
+            #     img = np.ascontiguousarray(img.transpose(2, 0, 1))
+            #     img_ls.append(DC(to_tensor(img), stack=True))
+            # support['img'] = img_ls
+            support['img'] = DC(to_tensor(np.ascontiguousarray(np.stack(imgs,axis = 0).transpose(0, 3, 1, 2))), stack = True)
 
             bboxes = support['gt_bboxes']
-            bbox_ls = []
-            for bbox in bboxes:
-                bbox_ls.append(DC(to_tensor(bbox)))
-            support['gt_bboxes'] = bbox_ls
+            # bbox_ls = []
+            # for bbox in bboxes:
+            #     bbox_ls.append(DC(to_tensor(bbox)))
+            # support['gt_bboxes'] = bbox_ls
+            support['gt_bboxes'] = DC(to_tensor(np.stack(bboxes, axis = 0)[np.newaxis,np.newaxis,:]), stack = True)
 
             labels = support['gt_labels']
-            label_ls = []
-            for label in labels:
-                label_ls.append(DC(to_tensor(label)))
-            support['gt_lables'] = label_ls
+            # label_ls = []
+            # for label in labels:
+            #     label_ls.append(DC(to_tensor(label)))
+            # support['gt_lables'] = label_ls
+            support['gt_labels'] = DC(to_tensor(np.stack(labels, axis = 0)[np.newaxis,np.newaxis,:]), stack = True)
 
         return results
 
@@ -338,12 +341,18 @@ class Collect(object):
             img_meta[key] = results[key]
         data['img_metas'] = DC(img_meta, cpu_only=True)
         for key in self.keys:
-            data[key] = results[key]
+            if 'support' not in key:
+                data[key] = results[key]
 
         if 'support' in results.keys():
-            data['support_imgs'] = results['support']['img']
-            data['support_bboxes'] = results['support']['gt_bboxes']
-            data['support_labels'] = results['support']['gt_labels']
+            for key in self.keys:
+                if 'support' in key:
+                    if key == 'support_imgs':
+                        data[key] = results['support']['img']
+                    if key == 'support_bboxes':
+                        data[key] = results['support']['gt_bboxes']
+                    if key == 'support_labels':
+                        data[key] = results['support']['gt_labels']
 
         return data
 
