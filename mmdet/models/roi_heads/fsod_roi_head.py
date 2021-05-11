@@ -3,7 +3,7 @@ import torch
 from mmdet.core import bbox2result, bbox2roi, build_assigner, build_sampler
 from ..builder import HEADS, build_head, build_roi_extractor
 from .base_roi_head import BaseRoIHead
-from .test_mixins import BBoxTestMixin, MaskTestMixin
+from .test_mixins_fsod import BBoxTestMixin, MaskTestMixin
 import pdb
 
 @HEADS.register_module()
@@ -219,6 +219,7 @@ class StandardRoIHead_fsod(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                                 proposals=None,
                                 rescale=False):
         """Async test without augmentation."""
+        raise NotImplementedError
         assert self.with_bbox, 'Bbox head must be implemented.'
 
         det_bboxes, det_labels = await self.async_test_bboxes(
@@ -241,13 +242,15 @@ class StandardRoIHead_fsod(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                     x,
                     proposal_list,
                     img_metas,
+                    support_bbox_features,
                     proposals=None,
                     rescale=False):
         """Test without augmentation."""
         assert self.with_bbox, 'Bbox head must be implemented.'
-
+        # TODO: this simple_test_bboxes() needs change
         det_bboxes, det_labels = self.simple_test_bboxes(
-            x, img_metas, proposal_list, self.test_cfg, rescale=rescale)
+            x, img_metas, proposal_list, self.test_cfg, 
+            support_bbox_features = support_bbox_features, rescale=rescale)
         if torch.onnx.is_in_onnx_export():
             if self.with_mask:
                 segm_results = self.simple_test_mask(
@@ -274,6 +277,7 @@ class StandardRoIHead_fsod(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         If rescale is False, then returned bboxes and masks will fit the scale
         of imgs[0].
         """
+        raise NotImplementedError
         det_bboxes, det_labels = self.aug_test_bboxes(x, img_metas,
                                                       proposal_list,
                                                       self.test_cfg)

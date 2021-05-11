@@ -35,6 +35,12 @@ test_pipeline = [
             dict(type='Collect', keys=['img',]),
         ])
 ]
+custom_imports = dict(imports=['mmdet.core.utils.fsod_hook'], allow_failed_imports=False)
+custom_hooks = [
+    dict(type='Hook_fsod', a=1, b=2)
+]
+
+
 data = dict(
     train=dict(pipeline=train_pipeline),
     val=dict(pipeline=test_pipeline),

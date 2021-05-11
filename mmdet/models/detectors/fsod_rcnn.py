@@ -165,7 +165,6 @@ class FsodRCNN(BaseDetector):
                     support_bbox = torch.cat([torch.zeros_like(support_bbox[:1]), support_bbox]).float().contiguous()
                     support_bbox_features.append(self.roi_head.bbox_roi_extractor([support_feature.unsqueeze(0)],support_bbox.unsqueeze(0)))
 
-            pdb.set_trace()
             rpn_losses, proposal_list = self.rpn_head.forward_train(
                 x_i,
                 [img_metas[i]], 
@@ -202,13 +201,32 @@ class FsodRCNN(BaseDetector):
 
         return losses
 
+    def simple_test(self, img, img_metas, proposals=None, rescale=False):
+        """Test without augmentation."""
+
+        assert self.with_bbox, 'Bbox head must be implemented.'
+        
+        x = self.extract_feat(img)
+        # get origin input shape to onnx dynamic input shape
+        if torch.onnx.is_in_onnx_export():
+            img_shape = torch._shape_as_tensor(img)[2:]
+            img_metas[0]['img_shape_for_onnx'] = img_shape
+
+        if proposals is None:
+            proposal_list = self.rpn_head.simple_test_rpn(x, img_metas)
+        else:
+            proposal_list = proposals
+
+        return self.roi_head.simple_test(
+            x, proposal_list, img_metas, support_bbox_features = [], rescale=rescale)
+
     async def async_simple_test(self,
                                 img,
                                 img_meta,
                                 proposals=None,
                                 rescale=False):
         """Async test without augmentation."""
-        
+        raise NotImplementedError
         assert self.with_bbox, 'Bbox head must be implemented.'
         x = self.extract_feat(img)
 
@@ -221,33 +239,13 @@ class FsodRCNN(BaseDetector):
         return await self.roi_head.async_simple_test(
             x, proposal_list, img_meta, rescale=rescale)
 
-    def simple_test(self, img, img_metas, proposals=None, rescale=False):
-        """Test without augmentation."""
-
-        assert self.with_bbox, 'Bbox head must be implemented.'
-        
-        x = self.extract_feat(img)
-
-        # get origin input shape to onnx dynamic input shape
-        if torch.onnx.is_in_onnx_export():
-            img_shape = torch._shape_as_tensor(img)[2:]
-            img_metas[0]['img_shape_for_onnx'] = img_shape
-
-        if proposals is None:
-            proposal_list = self.rpn_head.simple_test_rpn(x, img_metas)
-        else:
-            proposal_list = proposals
-
-        return self.roi_head.simple_test(
-            x, proposal_list, img_metas, rescale=rescale)
-
     def aug_test(self, imgs, img_metas, rescale=False):
         """Test with augmentations.
 
         If rescale is False, then returned bboxes and masks will fit the scale
         of imgs[0].
         """
-
+        raise NotImplementedError
         x = self.extract_feats(imgs)
         proposal_list = self.rpn_head.aug_test_rpn(x, img_metas)
         return self.roi_head.aug_test(
