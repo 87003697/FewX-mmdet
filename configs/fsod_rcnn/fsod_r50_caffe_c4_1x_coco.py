@@ -5,7 +5,7 @@ _base_ = [
 ]
 # use caffe img_norm
 img_norm_cfg = dict(
-    mean=[103.530, 116.280, 123.675], std=[1.0, 1.0, 1.0], to_rgb=False)
+    mean=[103.530, 116.280, 123.675], std=[1.0, 1.0, 1.0], to_rgb=False) # pls do not change
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True,with_id=True ),
@@ -35,15 +35,16 @@ test_pipeline = [
             dict(type='Collect', keys=['img',]),
         ])
 ]
-custom_imports = dict(imports=['mmdet.core.utils.fsod_hook'], allow_failed_imports=False)
-custom_hooks = [
-    dict(type='Hook_fsod', a=1, b=2)
-]
-
-
+# custom_imports = dict(imports=['mmdet.core.utils.fsod_hook'], allow_failed_imports=False)
+# custom_hooks = [
+#     dict(type='Hook_fsod', a=1, b=2, priority='HIGHEST')
+# ]
 data = dict(
+    workers_per_gpu=0, #! 2 for debug data pipeline
     train=dict(pipeline=train_pipeline),
     val=dict(pipeline=test_pipeline),
     test=dict(pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
+
+# workflow = [('test', 1)]

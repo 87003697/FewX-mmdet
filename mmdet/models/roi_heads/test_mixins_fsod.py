@@ -25,7 +25,7 @@ class BBoxTestMixin(object):
                                     bbox_semaphore=None,
                                     global_lock=None):
             """Asynchronized test for box head without augmentation."""
-            raise NotImplementedError
+            # raise NotImplementedError
             rois = bbox2roi(proposals)
             roi_feats = self.bbox_roi_extractor(
                 x[:len(self.bbox_roi_extractor.featmap_strides)], rois)
@@ -168,7 +168,7 @@ class BBoxTestMixin(object):
             cfg=rcnn_test_cfg)
 
     def aug_test_bboxes(self, feats, img_metas, proposal_list, rcnn_test_cfg):
-        raise NotImplementedError
+        # raise NotImplementedError
         """Test det bboxes with test time augmentation."""
         aug_bboxes = []
         aug_scores = []

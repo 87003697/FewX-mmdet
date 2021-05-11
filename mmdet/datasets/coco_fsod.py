@@ -35,6 +35,7 @@ class CocoDataset_fsod(CustomDataset):
                'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock',
                'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush')
 
+
     def load_annotations(self, ann_file):
         """Load annotation from COCO style annotation file.
 
@@ -557,3 +558,21 @@ class CocoDataset_fsod(CustomDataset):
         if tmp_dir is not None:
             tmp_dir.cleanup()
         return eval_results
+
+
+    # def prepare_test_img(self, idx):
+    #     """Get testing data  after pipeline. For fsod, we need support imgs as well
+
+    #     Args:
+    #         idx (int): Index of data.
+
+    #     Returns:
+    #         dict: Testing data after pipeline with new keys introduced by \
+    #             pipeline.
+    #     """
+    #     img_info = self.data_infos[idx]
+    #     results = dict(img_info=img_info)
+    #     if self.proposals is not None:
+    #         results['proposals'] = self.proposals[idx]
+    #     self.pre_pipeline(results)
+    #     return self.pipeline(results)

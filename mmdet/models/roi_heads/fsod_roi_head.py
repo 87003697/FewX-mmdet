@@ -219,7 +219,7 @@ class StandardRoIHead_fsod(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                                 proposals=None,
                                 rescale=False):
         """Async test without augmentation."""
-        raise NotImplementedError
+        # raise NotImplementedError
         assert self.with_bbox, 'Bbox head must be implemented.'
 
         det_bboxes, det_labels = await self.async_test_bboxes(
@@ -277,7 +277,7 @@ class StandardRoIHead_fsod(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         If rescale is False, then returned bboxes and masks will fit the scale
         of imgs[0].
         """
-        raise NotImplementedError
+        # raise NotImplementedError
         det_bboxes, det_labels = self.aug_test_bboxes(x, img_metas,
                                                       proposal_list,
                                                       self.test_cfg)

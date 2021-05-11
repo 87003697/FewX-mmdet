@@ -11,7 +11,15 @@ from mmcv.image import tensor2imgs
 from mmcv.runner import get_dist_info
 
 from mmdet.core import encode_mask_results
+import pdb
 
+import pandas as pd
+import numpy as np
+import os
+import mmcv
+import torch
+import tqdm
+from mmdet.datasets.pipelines import to_tensor
 
 def single_gpu_test(model,
                     data_loader,
@@ -21,6 +29,9 @@ def single_gpu_test(model,
     model.eval()
     results = []
     dataset = data_loader.dataset
+    if 'FsodRCNN' in str(type(model.module)):
+        model = get_support(model, data_loader)
+
     prog_bar = mmcv.ProgressBar(len(dataset))
     for i, data in enumerate(data_loader):
         with torch.no_grad():
@@ -88,6 +99,10 @@ def multi_gpu_test(model, data_loader, tmpdir=None, gpu_collect=False):
     model.eval()
     results = []
     dataset = data_loader.dataset
+
+    if 'FsodRCNN' in str(type(model.module)):
+        model = get_support(model, data_loader)
+
     rank, world_size = get_dist_info()
     if rank == 0:
         prog_bar = mmcv.ProgressBar(len(dataset))
@@ -188,3 +203,75 @@ def collect_results_gpu(result_part, size):
         # the dataloader may pad some samples
         ordered_results = ordered_results[:size]
         return ordered_results
+
+def get_support(model_, data_loader,
+    file_client_args=dict(backend='disk'),color_type='color',
+    mean=[103.530, 116.280, 123.675], std=[1.0, 1.0, 1.0], to_rgb=False):
+
+    model = model_.module
+
+    dataset = data_loader.dataset
+    cat2label = dataset.cat2label
+    reverse_id_mapper = lambda dataset_id: cat2label[dataset_id]
+
+    support_path = './data/coco/10_shot_support_df.pkl'
+    support_df = pd.read_pickle(support_path)
+    support_df['category_id'] = support_df['category_id'].map(reverse_id_mapper) 
+
+    file_client = mmcv.FileClient(**file_client_args) # img loader
+    mean = np.array(mean, dtype=np.float32)
+    std = np.array(std, dtype=np.float32)
+    to_rgb = to_rgb
+
+    support_dict = {'res4_avg': {}, 'res5_avg': {}}
+    # print('-'*10,'Extracting Support Features','-'*20)
+    for cls in support_df['category_id'].unique():
+        support_cls_df = support_df.loc[support_df['category_id'] == cls, :].reset_index()
+        support_data_all = []
+        support_box_all = []
+
+        for index, support_img_df in support_cls_df.iterrows():
+            # Collect image as tensor
+            img_path = os.path.join('./data/coco', support_img_df['file_path'][2:])
+            img_bytes = file_client.get(img_path)
+            img = mmcv.imfrombytes(img_bytes, flag=color_type)
+
+            # Follow the pipeline of Normalize
+            img = mmcv.imnormalize(img, mean, std, to_rgb)
+
+            # Follow the pipeline of ImageToTensor
+            if len(img.shape) < 3:
+                img = np.expand_dims(img, -1)
+            img = to_tensor(np.ascontiguousarray(img.transpose(2, 0, 1))).cuda()
+
+            support_data_all.append(img)
+
+            # Collect bbox as tensor
+            bbox = support_img_df['support_box']
+            bbox = to_tensor(np.stack(bbox, axis = 0))
+            support_box_all.append(bbox)
+
+        support_features = model.extract_feat(torch.stack(support_data_all))
+        support_bbox_features = []
+        for support_features_ in support_features:
+            for support_feature, support_bbox in zip(support_features_,support_box_all):
+            # extract roi features in res4
+                support_bbox = torch.cat([torch.zeros_like(support_bbox[:1]), support_bbox]).float().contiguous().cuda()
+                support_bbox_features.append(model.roi_head.bbox_roi_extractor([support_feature.unsqueeze(0)],support_bbox.unsqueeze(0)))
+
+        # collect roi features up
+        support_bbox_features = torch.cat(support_bbox_features)
+        res4_avg = support_bbox_features.mean(0, True).mean(dim=[2,3], keepdim=True)
+        support_dict['res4_avg'][cls] = res4_avg.detach()
+
+        # use res5 to collect deepper features
+        assert model.with_shared_head
+        res5_feature = model.roi_head.shared_head(support_bbox_features)
+        res5_avg = res5_feature.mean(0, True)
+        support_dict['res5_avg'][cls] = res5_avg.detach() 
+
+    model.support_dict = support_dict
+    return model_
+
+
+    

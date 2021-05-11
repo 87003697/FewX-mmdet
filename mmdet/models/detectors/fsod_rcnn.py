@@ -198,12 +198,11 @@ class FsodRCNN(BaseDetector):
         losses['acc'] = torch.stack(acces).mean()
         losses['loss_bbox'] = torch.stack(losses_bbox).mean()
 
-
         return losses
 
     def simple_test(self, img, img_metas, proposals=None, rescale=False):
         """Test without augmentation."""
-
+        # print('start simple testing')
         assert self.with_bbox, 'Bbox head must be implemented.'
         
         x = self.extract_feat(img)
@@ -226,7 +225,8 @@ class FsodRCNN(BaseDetector):
                                 proposals=None,
                                 rescale=False):
         """Async test without augmentation."""
-        raise NotImplementedError
+        # raise NotImplementedError
+        # print('start async simple testing')
         assert self.with_bbox, 'Bbox head must be implemented.'
         x = self.extract_feat(img)
 
@@ -245,7 +245,8 @@ class FsodRCNN(BaseDetector):
         If rescale is False, then returned bboxes and masks will fit the scale
         of imgs[0].
         """
-        raise NotImplementedError
+        # raise NotImplementedError
+        # print('start aug testing')
         x = self.extract_feats(imgs)
         proposal_list = self.rpn_head.aug_test_rpn(x, img_metas)
         return self.roi_head.aug_test(

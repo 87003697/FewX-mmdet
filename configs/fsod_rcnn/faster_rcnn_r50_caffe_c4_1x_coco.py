@@ -37,3 +37,8 @@ data = dict(
     test=dict(pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
+
+custom_imports = dict(imports=['mmdet.core.utils.fsod_hook'], allow_failed_imports=False)
+custom_hooks = [
+    dict(type='Hook_fsod', a=1, b=2, priority='HIGHEST')
+]

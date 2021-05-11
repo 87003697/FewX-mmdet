@@ -33,9 +33,9 @@ class LoadImageFromFile(object):
     """
 
     def __init__(self,
-                 to_float32=False,
-                 color_type='color',
-                 file_client_args=dict(backend='disk')):
+                to_float32=False,
+                color_type='color',
+                file_client_args=dict(backend='disk')):
         self.to_float32 = to_float32
         self.color_type = color_type
         self.file_client_args = file_client_args.copy()
